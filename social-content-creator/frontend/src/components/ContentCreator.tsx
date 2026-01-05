@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Sparkles, Loader2, Copy, Check, X, Image, Music, Video } from 'lucide-react';
+import { Sparkles, Loader2, Copy, Check, X, Image, Music, Video, Download, Heart, Star } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { createContent } from '../lib/api';
 import type { Platform, ContentType, ToneOfVoice } from '../lib/types';
@@ -36,6 +36,15 @@ interface UploadedFile {
   type: 'image' | 'audio' | 'video';
 }
 
+interface ContentOption {
+  id: number;
+  title: string;
+  copy: string;
+  hashtags: string[];
+  imageUrl?: string;
+  videoUrl?: string;
+}
+
 export function ContentCreator() {
   const [description, setDescription] = useState('');
   const [platform, setPlatform] = useState<Platform>('instagram');
@@ -50,7 +59,8 @@ export function ContentCreator() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -86,11 +96,23 @@ export function ContentCreator() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setSelectedOption(null);
 
     try {
-      const filesDescription = uploadedFiles.length > 0
-        ? `\n\nArquivos anexados pelo usuario:\n${uploadedFiles.map((f, i) => `${i + 1}. ${f.type}: ${f.file.name}`).join('\n')}`
-        : '';
+      const audioFiles = uploadedFiles.filter((f) => f.type === 'audio');
+      const imageFiles = uploadedFiles.filter((f) => f.type === 'image');
+      
+      let filesDescription = '';
+      
+      if (audioFiles.length > 0) {
+        filesDescription += `\n\nAUDIO ANEXADO PELO USUARIO (transcreva e use como base para o conteudo):\n`;
+        filesDescription += audioFiles.map((f) => `- ${f.file.name}`).join('\n');
+      }
+      
+      if (imageFiles.length > 0) {
+        filesDescription += `\n\nIMAGENS ANEXADAS PELO USUARIO (use como referencia visual):\n`;
+        filesDescription += imageFiles.map((f) => `- ${f.file.name}`).join('\n');
+      }
 
       const response = await createContent({
         description: description + filesDescription,
@@ -117,17 +139,20 @@ export function ContentCreator() {
     }
   };
 
-  const handleCopy = () => {
-    if (result) {
-      navigator.clipboard.writeText(result);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+  const handleCopy = (text: string, id: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const imageFiles = uploadedFiles.filter((f) => f.type === 'image');
   const audioFiles = uploadedFiles.filter((f) => f.type === 'audio');
   const videoFiles = uploadedFiles.filter((f) => f.type === 'video');
+
+  const extractUrls = (text: string) => {
+    const urlRegex = /(https?:\/\/[^\s\)]+\.(png|jpg|jpeg|gif|webp|mp4|webm|mov))/gi;
+    return text.match(urlRegex) || [];
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
@@ -137,7 +162,7 @@ export function ContentCreator() {
         </div>
         <div>
           <h2 className="text-xl font-bold text-gray-800">Criar Conteudo</h2>
-          <p className="text-sm text-gray-500">Descreva o que voce precisa e deixe a IA criar</p>
+          <p className="text-sm text-gray-500">Descreva o que voce precisa e receba 3 opcoes prontas</p>
         </div>
       </div>
 
@@ -236,7 +261,7 @@ export function ContentCreator() {
             className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-400 hover:bg-primary-50 transition-colors"
           >
             <Music className="w-5 h-5 text-gray-500" />
-            <span className="text-sm text-gray-600">Audio</span>
+            <span className="text-sm text-gray-600">Audio (para video)</span>
           </button>
 
           <button
@@ -276,17 +301,17 @@ export function ContentCreator() {
 
             {audioFiles.length > 0 && (
               <div>
-                <p className="text-xs text-gray-500 mb-2">Audios ({audioFiles.length})</p>
+                <p className="text-xs text-gray-500 mb-2">Audios - serao transcritos e usados no video ({audioFiles.length})</p>
                 <div className="flex flex-wrap gap-2">
                   {audioFiles.map((f, i) => (
-                    <div key={i} className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
-                      <Music className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm text-gray-700 max-w-[150px] truncate">{f.file.name}</span>
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg">
+                      <Music className="w-4 h-4 text-purple-500" />
+                      <span className="text-sm text-purple-700 max-w-[150px] truncate">{f.file.name}</span>
                       <button
                         onClick={() => removeFile(uploadedFiles.indexOf(f))}
-                        className="p-1 hover:bg-gray-200 rounded-full"
+                        className="p-1 hover:bg-purple-100 rounded-full"
                       >
-                        <X className="w-3 h-3 text-gray-500" />
+                        <X className="w-3 h-3 text-purple-500" />
                       </button>
                     </div>
                   ))}
@@ -393,7 +418,7 @@ export function ContentCreator() {
         {loading ? (
           <>
             <Loader2 className="w-5 h-5 animate-spin" />
-            Criando conteudo...
+            Criando 3 opcoes de conteudo...
           </>
         ) : (
           <>
@@ -410,28 +435,80 @@ export function ContentCreator() {
       )}
 
       {result && (
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-gray-800">Conteudo Gerado</h3>
-            <button
-              onClick={handleCopy}
-              className="flex items-center gap-1 px-3 py-1 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-4 h-4 text-green-500" />
-                  Copiado!
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4" />
-                  Copiar
-                </>
-              )}
-            </button>
+        <div className="mt-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Star className="w-5 h-5 text-yellow-500" />
+            <h3 className="text-lg font-bold text-gray-800">Opcoes de Conteudo Geradas</h3>
           </div>
-          <div className="markdown-content text-gray-700">
-            <ReactMarkdown>{result}</ReactMarkdown>
+          <p className="text-sm text-gray-500 mb-6">Escolha a opcao que mais combina com voce</p>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+            <div 
+              className={`relative bg-gradient-to-br from-white to-gray-50 rounded-xl border-2 transition-all cursor-pointer ${
+                selectedOption === 1 ? 'border-primary-500 shadow-lg' : 'border-gray-200 hover:border-primary-300'
+              }`}
+              onClick={() => setSelectedOption(1)}
+            >
+              {selectedOption === 1 && (
+                <div className="absolute -top-3 -right-3 bg-primary-500 text-white p-2 rounded-full">
+                  <Heart className="w-4 h-4 fill-current" />
+                </div>
+              )}
+              
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="px-3 py-1 bg-primary-100 text-primary-700 text-xs font-semibold rounded-full">
+                    Conteudo Gerado
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopy(result, 1);
+                    }}
+                    className="flex items-center gap-1 px-3 py-1 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    {copiedId === 1 ? (
+                      <>
+                        <Check className="w-4 h-4 text-green-500" />
+                        Copiado!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        Copiar
+                      </>
+                    )}
+                  </button>
+                </div>
+                
+                <div className="prose prose-sm max-w-none">
+                  <ReactMarkdown>{result}</ReactMarkdown>
+                </div>
+
+                {extractUrls(result).length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Arquivos Gerados:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {extractUrls(result).map((url, i) => (
+                        <a
+                          key={i}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Download className="w-4 h-4" />
+                          <span className="text-sm font-medium">
+                            {url.includes('.mp4') || url.includes('.webm') ? 'Baixar Video' : 'Baixar Imagem'}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
