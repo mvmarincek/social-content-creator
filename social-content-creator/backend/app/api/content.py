@@ -19,56 +19,63 @@ router = APIRouter(prefix="/api/content", tags=["content"])
 async def create_content(request: ContentRequest):
     try:
         base_prompt = f"""
-Crie conteúdo para {request.platform.value} do tipo {request.content_type.value}.
+Crie conteudo para {request.platform.value} do tipo {request.content_type.value}.
 
 BRIEFING:
 {request.description}
 
-CONFIGURAÇÕES:
+CONFIGURACOES:
 - Plataforma: {request.platform.value}
 - Tipo: {request.content_type.value}
 - Tom de voz: {request.tone.value}
 
-IMPORTANTE: Você DEVE criar EXATAMENTE 3 OPÇÕES DIFERENTES de conteúdo.
-Cada opção deve ter:
-- Título claro (ex: "## Opção 1: [Nome Criativo]")
-- Copy/texto completo para a publicação
-- Hashtags relevantes
-- Uma abordagem/estilo diferente das outras opções
+REGRA OBRIGATORIA: Voce DEVE criar EXATAMENTE 3 OPCOES DIFERENTES de conteudo.
+Formate assim:
+## Opcao 1: [Nome Criativo]
+[conteudo completo]
 
-Formate cada opção claramente separada com headers markdown.
+## Opcao 2: [Nome Criativo]  
+[conteudo completo]
+
+## Opcao 3: [Nome Criativo]
+[conteudo completo]
+
+Cada opcao deve ter copy, hashtags e abordagem DIFERENTE das outras.
 """
         if request.generate_image:
             base_prompt += """
-IMPORTANTE - GERAR IMAGEM:
-O usuário solicitou que você GERE UMA IMAGEM usando a ferramenta generate_media.
-Você DEVE usar a ferramenta para criar a imagem e incluir a URL da imagem gerada na resposta.
-Gere uma imagem diferente para cada uma das 3 opções.
+ACAO OBRIGATORIA - GERAR IMAGEM REAL:
+O usuario quer uma IMAGEM REAL gerada por IA.
+Voce DEVE delegar para o Image Creator que vai usar a ferramenta generate_media.
+A resposta DEVE conter a URL real da imagem gerada (https://...png ou .jpg).
+NAO descreva a imagem - GERE a imagem real usando a ferramenta FalTools.
 """
         if request.generate_video:
             base_prompt += """
-IMPORTANTE - GERAR VÍDEO:
-O usuário solicitou que você GERE UM VÍDEO usando a ferramenta generate_media.
-Você DEVE usar a ferramenta para criar o vídeo e incluir a URL do vídeo gerado na resposta.
+ACAO OBRIGATORIA - GERAR VIDEO REAL:
+O usuario quer um VIDEO REAL gerado por IA.
+Voce DEVE delegar para o Video Creator que vai usar a ferramenta generate_media.
+A resposta DEVE conter a URL real do video gerado (https://...mp4).
+NAO descreva o video - GERE o video real usando a ferramenta FalTools.
 """
         if request.generate_audio:
             base_prompt += """
-IMPORTANTE - GERAR ÁUDIO:
-O usuário solicitou narração/áudio para o conteúdo.
+GERAR AUDIO/NARRACAO:
+O usuario solicitou narracao/audio para o conteudo.
 """
         if request.reference_profile:
-            base_prompt += f"\nPERFIL DE REFERÊNCIA: {request.reference_profile}"
+            base_prompt += f"\nPERFIL DE REFERENCIA: {request.reference_profile}"
         
         if request.reference_text:
-            base_prompt += f"\nTEXTO DE REFERÊNCIA PARA ESTILO:\n{request.reference_text}"
+            base_prompt += f"\nTEXTO DE REFERENCIA PARA ESTILO:\n{request.reference_text}"
         
         if request.user_copy:
-            base_prompt += f"\nCOPY/TEXTO FORNECIDO PELO USUÁRIO:\n{request.user_copy}"
+            base_prompt += f"\nCOPY/TEXTO FORNECIDO PELO USUARIO:\n{request.user_copy}"
         
         if request.additional_instructions:
-            base_prompt += f"\nINSTRUÇÕES ADICIONAIS:\n{request.additional_instructions}"
+            base_prompt += f"\nINSTRUCOES ADICIONAIS:\n{request.additional_instructions}"
         
-        base_prompt += "\n\nCrie as 3 opções de conteúdo completas e prontas para publicação."
+        base_prompt += "\n\nCrie as 3 opcoes de conteudo completas e prontas para publicacao. Se foi solicitado imagem ou video, inclua as URLs reais geradas."
         
         response = await content_master_team.arun(base_prompt)
         
