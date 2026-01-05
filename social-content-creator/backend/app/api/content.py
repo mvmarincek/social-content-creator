@@ -147,10 +147,12 @@ async def test_image_generation():
 @router.post("/test-audio")
 async def test_audio_generation():
     """Endpoint de teste para verificar se a geracao de audio funciona"""
-    from app.agents.audio_creator import audio_creator_agent
     try:
+        from app.agents.audio_creator import audio_creator_agent
         response = await audio_creator_agent.arun("Crie uma narracao curta e energetica para um video sobre cafe: Bom dia! Nada como comecar o dia com aquele cafezinho perfeito!")
         return {"success": True, "content": response.content}
+    except ImportError as ie:
+        raise HTTPException(status_code=500, detail=f"Import error: {str(ie)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
