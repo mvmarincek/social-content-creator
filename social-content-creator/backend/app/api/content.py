@@ -25,9 +25,23 @@ CONFIGURAÇÕES:
 - Plataforma: {request.platform.value}
 - Tipo: {request.content_type.value}
 - Tom de voz: {request.tone.value}
-- Gerar imagem com IA: {"Sim" if request.generate_image else "Não"}
-- Gerar vídeo com IA: {"Sim" if request.generate_video else "Não"}
-- Gerar áudio/narração: {"Sim" if request.generate_audio else "Não"}
+"""
+        if request.generate_image:
+            prompt += """
+IMPORTANTE - GERAR IMAGEM:
+O usuário solicitou que você GERE UMA IMAGEM usando a ferramenta generate_media.
+Você DEVE usar a ferramenta para criar a imagem e incluir a URL da imagem gerada na resposta.
+"""
+        if request.generate_video:
+            prompt += """
+IMPORTANTE - GERAR VÍDEO:
+O usuário solicitou que você GERE UM VÍDEO usando a ferramenta generate_media.
+Você DEVE usar a ferramenta para criar o vídeo e incluir a URL do vídeo gerado na resposta.
+"""
+        if request.generate_audio:
+            prompt += """
+IMPORTANTE - GERAR ÁUDIO:
+O usuário solicitou narração/áudio para o conteúdo.
 """
         if request.reference_profile:
             prompt += f"\nPERFIL DE REFERÊNCIA: {request.reference_profile}"
