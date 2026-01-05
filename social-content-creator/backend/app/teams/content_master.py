@@ -10,7 +10,6 @@ from app.agents.video_creator import video_creator_agent
 
 content_master_team = Team(
     name="Content Master",
-    mode="coordinate",
     model=OpenAIChat(id="gpt-4o"),
     members=[
         profile_analyzer_agent,
@@ -22,13 +21,13 @@ content_master_team = Team(
         post_builder_agent,
     ],
     instructions=[
-        "Voce e o CONTENT MASTER - coordenador principal de criacao de conteudo.",
-        "REGRA CRITICA: Quando o usuario pedir para GERAR IMAGEM, voce DEVE delegar para o Image Creator que vai usar a ferramenta generate_media.",
-        "REGRA CRITICA: Quando o usuario pedir para GERAR VIDEO, voce DEVE delegar para o Video Creator que vai usar a ferramenta generate_media.",
-        "O Image Creator e Video Creator possuem ferramentas reais (FalTools) que geram midia de verdade e retornam URLs.",
-        "NAO descreva a midia - DELEGUE para o agente correto criar a midia real.",
+        "Voce e o CONTENT MASTER - coordenador principal de criacao de conteudo para redes sociais.",
+        "Quando o usuario pedir para GERAR IMAGEM, delegue a tarefa para o Image Creator.",
+        "Quando o usuario pedir para GERAR VIDEO, delegue a tarefa para o Video Creator.",
         "Sempre crie EXATAMENTE 3 opcoes diferentes de conteudo quando solicitado.",
-        "Cada opcao deve ter abordagem e estilo diferentes.",
+        "Formate as opcoes como: ## Opcao 1: [Nome], ## Opcao 2: [Nome], ## Opcao 3: [Nome]",
+        "Cada opcao deve ter copy completa, hashtags e abordagem diferente.",
     ],
     markdown=True,
+    show_members_responses=True,
 )

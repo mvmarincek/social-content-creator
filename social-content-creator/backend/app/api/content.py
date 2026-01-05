@@ -129,6 +129,16 @@ async def chat_with_agent(request: GenerateContentRequest):
 async def health_check():
     return {"status": "healthy", "service": "Content Creator API"}
 
+@router.post("/test-image")
+async def test_image_generation():
+    """Endpoint de teste para verificar se a geracao de imagem funciona"""
+    from app.agents.image_creator import image_creator_agent
+    try:
+        response = await image_creator_agent.arun("Create an image of a coffee cup on a wooden table, morning light, cozy atmosphere")
+        return {"success": True, "content": response.content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
     try:
