@@ -52,16 +52,21 @@ NAO descreva a imagem - GERE a imagem real usando a ferramenta FalTools.
 """
         if request.generate_video:
             base_prompt += """
-ACAO OBRIGATORIA - GERAR VIDEO REAL:
+ACAO OBRIGATORIA - GERAR VIDEO COM AUDIO:
 O usuario quer um VIDEO REAL gerado por IA.
-Voce DEVE delegar para o Video Creator que vai usar a ferramenta generate_media.
-A resposta DEVE conter a URL real do video gerado (https://...mp4).
-NAO descreva o video - GERE o video real usando a ferramenta FalTools.
+IMPORTANTE: Todo video PRECISA ter audio (narracao ou musica).
+1. PRIMEIRO: Delegue para o Audio Creator gerar uma narracao adequada usando OpenAI TTS.
+2. DEPOIS: Delegue para o Video Creator gerar o video usando FalTools.
+A resposta DEVE conter:
+- URL do audio gerado (ou confirmacao de geracao)
+- URL real do video gerado (https://...mp4)
 """
         if request.generate_audio:
             base_prompt += """
-GERAR AUDIO/NARRACAO:
+ACAO OBRIGATORIA - GERAR AUDIO/NARRACAO:
 O usuario solicitou narracao/audio para o conteudo.
+Delegue para o Audio Creator que vai usar OpenAI TTS (text_to_speech).
+Crie um script de narracao envolvente e use a ferramenta para gerar o audio.
 """
         if request.reference_profile:
             base_prompt += f"\nPERFIL DE REFERENCIA: {request.reference_profile}"
@@ -135,6 +140,16 @@ async def test_image_generation():
     from app.agents.image_creator import image_creator_agent
     try:
         response = await image_creator_agent.arun("Create an image of a coffee cup on a wooden table, morning light, cozy atmosphere")
+        return {"success": True, "content": response.content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/test-audio")
+async def test_audio_generation():
+    """Endpoint de teste para verificar se a geracao de audio funciona"""
+    from app.agents.audio_creator import audio_creator_agent
+    try:
+        response = await audio_creator_agent.arun("Crie uma narracao curta e energetica para um video sobre cafe: Bom dia! Nada como comecar o dia com aquele cafezinho perfeito!")
         return {"success": True, "content": response.content}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -7,6 +7,7 @@ from app.agents.hashtag_expert import hashtag_expert_agent
 from app.agents.script_writer import script_writer_agent
 from app.agents.image_creator import image_creator_agent
 from app.agents.video_creator import video_creator_agent
+from app.agents.audio_creator import audio_creator_agent
 
 content_master_team = Team(
     name="Content Master",
@@ -18,15 +19,24 @@ content_master_team = Team(
         script_writer_agent,
         image_creator_agent,
         video_creator_agent,
+        audio_creator_agent,
         post_builder_agent,
     ],
     instructions=[
         "Voce e o CONTENT MASTER - coordenador principal de criacao de conteudo para redes sociais.",
-        "Quando o usuario pedir para GERAR IMAGEM, delegue a tarefa para o Image Creator.",
-        "Quando o usuario pedir para GERAR VIDEO, delegue a tarefa para o Video Creator.",
-        "Sempre crie EXATAMENTE 3 opcoes diferentes de conteudo quando solicitado.",
-        "Formate as opcoes como: ## Opcao 1: [Nome], ## Opcao 2: [Nome], ## Opcao 3: [Nome]",
-        "Cada opcao deve ter copy completa, hashtags e abordagem diferente.",
+        "REGRA OBRIGATORIA: Sempre crie EXATAMENTE 3 OPCOES DIFERENTES de conteudo.",
+        "Formate EXATAMENTE assim:",
+        "## Opcao 1: [Nome Criativo]",
+        "[copy completa, hashtags, etc]",
+        "## Opcao 2: [Nome Criativo]",
+        "[copy completa, hashtags, etc]",
+        "## Opcao 3: [Nome Criativo]",
+        "[copy completa, hashtags, etc]",
+        "Quando o usuario pedir IMAGEM, delegue para o Image Creator que usa FalTools.",
+        "Quando o usuario pedir VIDEO, delegue para o Video Creator que usa FalTools.",
+        "Quando o usuario pedir AUDIO/NARRACAO, delegue para o Audio Creator que usa OpenAI TTS.",
+        "Para VIDEO: sempre gere audio/narracao primeiro, depois o video.",
+        "Cada opcao deve ter abordagem e estilo DIFERENTES.",
     ],
     markdown=True,
     show_members_responses=True,
