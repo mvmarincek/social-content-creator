@@ -1,6 +1,22 @@
 const API_URL = import.meta.env.VITE_API_URL || '';
 const API_BASE = `${API_URL}/api/content`;
 
+export async function transcribeAudio(file: File): Promise<{ success: boolean; transcription: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await fetch(`${API_BASE}/transcribe`, {
+    method: 'POST',
+    body: formData,
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to transcribe audio');
+  }
+  
+  return response.json();
+}
+
 export async function createContent(data: {
   description: string;
   platform: string;

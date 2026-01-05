@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Sparkles, Loader2, Copy, Check, X, Image, Music, Video, Download, Heart, Star } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { createContent } from '../lib/api';
+import { createContent, transcribeAudio } from '../lib/api';
 import type { Platform, ContentType, ToneOfVoice } from '../lib/types';
 
 const platforms: { value: Platform; label: string }[] = [
@@ -57,7 +57,9 @@ export function ContentCreator() {
   const [generateVideo, setGenerateVideo] = useState(false);
   const [generateAudio, setGenerateAudio] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
   const [result, setResult] = useState<string | null>(null);
+  const [contentOptions, setContentOptions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
@@ -90,29 +92,73 @@ export function ContentCreator() {
     });
   };
 
+  const parseContentOptions = (text: string): string[] => {
+    const optionPatterns = [
+      /## Opção \d+[:\s]/gi,
+      /## Opcao \d+[:\s]/gi,
+      /### Opção \d+[:\s]/gi,
+      /### Opcao \d+[:\s]/gi,
+      /\*\*Opção \d+[:\s]/gi,
+      /\*\*Opcao \d+[:\s]/gi,
+    ];
+    
+    let splitPattern = optionPatterns.find(p => p.test(text));
+    if (!splitPattern) {
+      return [text];
+    }
+    
+    const parts = text.split(/## Opç[aã]o \d+[:\s]|### Opç[aã]o \d+[:\s]|\*\*Opç[aã]o \d+[:\s]/i);
+    const options = parts.filter(p => p.trim().length > 50);
+    
+    if (options.length === 0) {
+      return [text];
+    }
+    
+    return options.slice(0, 3);
+  };
+
   const handleCreate = async () => {
     if (!description.trim()) return;
 
     setLoading(true);
     setError(null);
     setResult(null);
+    setContentOptions([]);
     setSelectedOption(null);
 
     try {
       const audioFiles = uploadedFiles.filter((f) => f.type === 'audio');
       const imageFiles = uploadedFiles.filter((f) => f.type === 'image');
       
-      let filesDescription = '';
+      let transcriptions = '';
       
       if (audioFiles.length > 0) {
-        filesDescription += `\n\nAUDIO ANEXADO PELO USUARIO (transcreva e use como base para o conteudo):\n`;
-        filesDescription += audioFiles.map((f) => `- ${f.file.name}`).join('\n');
+        setLoadingMessage('Transcrevendo audio...');
+        for (const audioFile of audioFiles) {
+          try {
+            const result = await transcribeAudio(audioFile.file);
+            if (result.success && result.transcription) {
+              transcriptions += `\n\nTRANSCRICAO DO AUDIO "${audioFile.file.name}":\n${result.transcription}`;
+            }
+          } catch (err) {
+            console.error('Erro ao transcrever audio:', err);
+          }
+        }
+      }
+      
+      let filesDescription = '';
+      
+      if (transcriptions) {
+        filesDescription += transcriptions;
+        filesDescription += '\n\nUSE O CONTEUDO TRANSCRITO ACIMA COMO BASE PRINCIPAL PARA CRIAR O CONTEUDO.';
       }
       
       if (imageFiles.length > 0) {
         filesDescription += `\n\nIMAGENS ANEXADAS PELO USUARIO (use como referencia visual):\n`;
         filesDescription += imageFiles.map((f) => `- ${f.file.name}`).join('\n');
       }
+
+      setLoadingMessage('Gerando 3 opcoes de conteudo...');
 
       const response = await createContent({
         description: description + filesDescription,
@@ -129,6 +175,8 @@ export function ContentCreator() {
 
       if (response.success) {
         setResult(response.content);
+        const options = parseContentOptions(response.content);
+        setContentOptions(options);
       } else {
         setError(response.error || 'Erro ao criar conteudo');
       }
@@ -136,6 +184,7 @@ export function ContentCreator() {
       setError('Erro ao conectar com o servidor. Verifique se o backend esta rodando.');
     } finally {
       setLoading(false);
+      setLoadingMessage('');
     }
   };
 
@@ -418,7 +467,7 @@ export function ContentCreator() {
         {loading ? (
           <>
             <Loader2 className="w-5 h-5 animate-spin" />
-            Criando 3 opcoes de conteudo...
+            {loadingMessage || 'Criando 3 opcoes de conteudo...'}
           </>
         ) : (
           <>
@@ -440,75 +489,151 @@ export function ContentCreator() {
             <Star className="w-5 h-5 text-yellow-500" />
             <h3 className="text-lg font-bold text-gray-800">Opcoes de Conteudo Geradas</h3>
           </div>
-          <p className="text-sm text-gray-500 mb-6">Escolha a opcao que mais combina com voce</p>
+          <p className="text-sm text-gray-500 mb-6">Clique na opcao que mais combina com voce para seleciona-la</p>
           
-          <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
-            <div 
-              className={`relative bg-gradient-to-br from-white to-gray-50 rounded-xl border-2 transition-all cursor-pointer ${
-                selectedOption === 1 ? 'border-primary-500 shadow-lg' : 'border-gray-200 hover:border-primary-300'
-              }`}
-              onClick={() => setSelectedOption(1)}
-            >
-              {selectedOption === 1 && (
-                <div className="absolute -top-3 -right-3 bg-primary-500 text-white p-2 rounded-full">
-                  <Heart className="w-4 h-4 fill-current" />
-                </div>
-              )}
-              
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="px-3 py-1 bg-primary-100 text-primary-700 text-xs font-semibold rounded-full">
-                    Conteudo Gerado
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCopy(result, 1);
-                    }}
-                    className="flex items-center gap-1 px-3 py-1 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    {copiedId === 1 ? (
-                      <>
-                        <Check className="w-4 h-4 text-green-500" />
-                        Copiado!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-4 h-4" />
-                        Copiar
-                      </>
-                    )}
-                  </button>
-                </div>
-                
-                <div className="prose prose-sm max-w-none">
-                  <ReactMarkdown>{result}</ReactMarkdown>
-                </div>
-
-                {extractUrls(result).length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <p className="text-sm font-medium text-gray-700 mb-2">Arquivos Gerados:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {extractUrls(result).map((url, i) => (
-                        <a
-                          key={i}
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Download className="w-4 h-4" />
-                          <span className="text-sm font-medium">
-                            {url.includes('.mp4') || url.includes('.webm') ? 'Baixar Video' : 'Baixar Imagem'}
-                          </span>
-                        </a>
-                      ))}
+          <div className="grid grid-cols-1 gap-6">
+            {contentOptions.length > 0 ? (
+              contentOptions.map((option, index) => (
+                <div 
+                  key={index}
+                  className={`relative bg-gradient-to-br from-white to-gray-50 rounded-xl border-2 transition-all cursor-pointer ${
+                    selectedOption === index + 1 ? 'border-primary-500 shadow-lg ring-2 ring-primary-200' : 'border-gray-200 hover:border-primary-300 hover:shadow-md'
+                  }`}
+                  onClick={() => setSelectedOption(index + 1)}
+                >
+                  {selectedOption === index + 1 && (
+                    <div className="absolute -top-3 -right-3 bg-primary-500 text-white p-2 rounded-full shadow-lg">
+                      <Heart className="w-4 h-4 fill-current" />
                     </div>
+                  )}
+                  
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                        index === 0 ? 'bg-blue-100 text-blue-700' :
+                        index === 1 ? 'bg-purple-100 text-purple-700' :
+                        'bg-green-100 text-green-700'
+                      }`}>
+                        Opcao {index + 1}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCopy(option, index + 1);
+                        }}
+                        className="flex items-center gap-1 px-3 py-1 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        {copiedId === index + 1 ? (
+                          <>
+                            <Check className="w-4 h-4 text-green-500" />
+                            Copiado!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4" />
+                            Copiar
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    
+                    <div className="prose prose-sm max-w-none">
+                      <ReactMarkdown>{option}</ReactMarkdown>
+                    </div>
+
+                    {extractUrls(option).length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <p className="text-sm font-medium text-gray-700 mb-2">Arquivos Gerados:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {extractUrls(option).map((url, i) => (
+                            <a
+                              key={i}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Download className="w-4 h-4" />
+                              <span className="text-sm font-medium">
+                                {url.includes('.mp4') || url.includes('.webm') ? 'Baixar Video' : 'Baixar Imagem'}
+                              </span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div 
+                className={`relative bg-gradient-to-br from-white to-gray-50 rounded-xl border-2 transition-all cursor-pointer ${
+                  selectedOption === 1 ? 'border-primary-500 shadow-lg' : 'border-gray-200 hover:border-primary-300'
+                }`}
+                onClick={() => setSelectedOption(1)}
+              >
+                {selectedOption === 1 && (
+                  <div className="absolute -top-3 -right-3 bg-primary-500 text-white p-2 rounded-full">
+                    <Heart className="w-4 h-4 fill-current" />
                   </div>
                 )}
+                
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="px-3 py-1 bg-primary-100 text-primary-700 text-xs font-semibold rounded-full">
+                      Conteudo Gerado
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCopy(result, 1);
+                      }}
+                      className="flex items-center gap-1 px-3 py-1 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      {copiedId === 1 ? (
+                        <>
+                          <Check className="w-4 h-4 text-green-500" />
+                          Copiado!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          Copiar
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  
+                  <div className="prose prose-sm max-w-none">
+                    <ReactMarkdown>{result}</ReactMarkdown>
+                  </div>
+
+                  {extractUrls(result).length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Arquivos Gerados:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {extractUrls(result).map((url, i) => (
+                          <a
+                            key={i}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Download className="w-4 h-4" />
+                            <span className="text-sm font-medium">
+                              {url.includes('.mp4') || url.includes('.webm') ? 'Baixar Video' : 'Baixar Imagem'}
+                            </span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}

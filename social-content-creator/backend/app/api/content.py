@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from app.schemas import (
     ContentRequest,
     AnalyzeProfileRequest,
@@ -9,13 +9,16 @@ from app.schemas import (
 from app.teams.content_master import content_master_team
 from app.agents.profile_analyzer import profile_analyzer_agent
 import uuid
+import openai
+import tempfile
+import os
 
 router = APIRouter(prefix="/api/content", tags=["content"])
 
 @router.post("/create", response_model=ContentResponse)
 async def create_content(request: ContentRequest):
     try:
-        prompt = f"""
+        base_prompt = f"""
 Crie conteúdo para {request.platform.value} do tipo {request.content_type.value}.
 
 BRIEFING:
@@ -25,39 +28,49 @@ CONFIGURAÇÕES:
 - Plataforma: {request.platform.value}
 - Tipo: {request.content_type.value}
 - Tom de voz: {request.tone.value}
+
+IMPORTANTE: Você DEVE criar EXATAMENTE 3 OPÇÕES DIFERENTES de conteúdo.
+Cada opção deve ter:
+- Título claro (ex: "## Opção 1: [Nome Criativo]")
+- Copy/texto completo para a publicação
+- Hashtags relevantes
+- Uma abordagem/estilo diferente das outras opções
+
+Formate cada opção claramente separada com headers markdown.
 """
         if request.generate_image:
-            prompt += """
+            base_prompt += """
 IMPORTANTE - GERAR IMAGEM:
 O usuário solicitou que você GERE UMA IMAGEM usando a ferramenta generate_media.
 Você DEVE usar a ferramenta para criar a imagem e incluir a URL da imagem gerada na resposta.
+Gere uma imagem diferente para cada uma das 3 opções.
 """
         if request.generate_video:
-            prompt += """
+            base_prompt += """
 IMPORTANTE - GERAR VÍDEO:
 O usuário solicitou que você GERE UM VÍDEO usando a ferramenta generate_media.
 Você DEVE usar a ferramenta para criar o vídeo e incluir a URL do vídeo gerado na resposta.
 """
         if request.generate_audio:
-            prompt += """
+            base_prompt += """
 IMPORTANTE - GERAR ÁUDIO:
 O usuário solicitou narração/áudio para o conteúdo.
 """
         if request.reference_profile:
-            prompt += f"\nPERFIL DE REFERÊNCIA: {request.reference_profile}"
+            base_prompt += f"\nPERFIL DE REFERÊNCIA: {request.reference_profile}"
         
         if request.reference_text:
-            prompt += f"\nTEXTO DE REFERÊNCIA PARA ESTILO:\n{request.reference_text}"
+            base_prompt += f"\nTEXTO DE REFERÊNCIA PARA ESTILO:\n{request.reference_text}"
         
         if request.user_copy:
-            prompt += f"\nCOPY/TEXTO FORNECIDO PELO USUÁRIO:\n{request.user_copy}"
+            base_prompt += f"\nCOPY/TEXTO FORNECIDO PELO USUÁRIO:\n{request.user_copy}"
         
         if request.additional_instructions:
-            prompt += f"\nINSTRUÇÕES ADICIONAIS:\n{request.additional_instructions}"
+            base_prompt += f"\nINSTRUÇÕES ADICIONAIS:\n{request.additional_instructions}"
         
-        prompt += "\n\nCrie o conteúdo completo e pronto para publicação."
+        base_prompt += "\n\nCrie as 3 opções de conteúdo completas e prontas para publicação."
         
-        response = await content_master_team.arun(prompt)
+        response = await content_master_team.arun(base_prompt)
         
         return ContentResponse(
             success=True,
@@ -108,3 +121,26 @@ async def chat_with_agent(request: GenerateContentRequest):
 @router.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "Content Creator API"}
+
+@router.post("/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    try:
+        suffix = os.path.splitext(file.filename)[1] if file.filename else ".mp3"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            content = await file.read()
+            tmp.write(content)
+            tmp_path = tmp.name
+        
+        try:
+            client = openai.OpenAI()
+            with open(tmp_path, "rb") as audio_file:
+                transcript = client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio_file,
+                    response_format="text"
+                )
+            return {"success": True, "transcription": transcript}
+        finally:
+            os.unlink(tmp_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
