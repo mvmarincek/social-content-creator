@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Sparkles, Loader2, Copy, Check, Upload, X, Image, Music, Video } from 'lucide-react';
+import { Sparkles, Loader2, Copy, Check, X, Image, Music, Video } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { createContent } from '../lib/api';
 import type { Platform, ContentType, ToneOfVoice } from '../lib/types';
