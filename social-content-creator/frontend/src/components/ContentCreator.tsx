@@ -36,15 +36,6 @@ interface UploadedFile {
   type: 'image' | 'audio' | 'video';
 }
 
-interface ContentOption {
-  id: number;
-  title: string;
-  copy: string;
-  hashtags: string[];
-  imageUrl?: string;
-  videoUrl?: string;
-}
-
 export function ContentCreator() {
   const [description, setDescription] = useState('');
   const [platform, setPlatform] = useState<Platform>('instagram');
