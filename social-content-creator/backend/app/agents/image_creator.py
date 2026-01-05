@@ -16,5 +16,4 @@ image_creator_agent = Agent(
         "A resposta DEVE conter a URL real da imagem gerada.",
     ],
     markdown=True,
-    show_tool_calls=True,
 )

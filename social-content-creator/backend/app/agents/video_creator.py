@@ -16,5 +16,4 @@ video_creator_agent = Agent(
         "A resposta DEVE conter a URL real do video gerado.",
     ],
     markdown=True,
-    show_tool_calls=True,
 )
