@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Sparkles, Loader2, Copy, Check } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Sparkles, Loader2, Copy, Check, Upload, X, Image, Music, Video } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { createContent } from '../lib/api';
 import type { Platform, ContentType, ToneOfVoice } from '../lib/types';
@@ -30,6 +30,12 @@ const tones: { value: ToneOfVoice; label: string }[] = [
   { value: 'inspirational', label: 'Inspiracional' },
 ];
 
+interface UploadedFile {
+  file: File;
+  preview: string;
+  type: 'image' | 'audio' | 'video';
+}
+
 export function ContentCreator() {
   const [description, setDescription] = useState('');
   const [platform, setPlatform] = useState<Platform>('instagram');
@@ -45,6 +51,34 @@ export function ContentCreator() {
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'audio' | 'video') => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach((file) => {
+      const preview = type === 'image' ? URL.createObjectURL(file) : '';
+      setUploadedFiles((prev) => [...prev, { file, preview, type }]);
+    });
+
+    e.target.value = '';
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles((prev) => {
+      const newFiles = [...prev];
+      if (newFiles[index].preview) {
+        URL.revokeObjectURL(newFiles[index].preview);
+      }
+      newFiles.splice(index, 1);
+      return newFiles;
+    });
+  };
 
   const handleCreate = async () => {
     if (!description.trim()) return;
@@ -54,8 +88,12 @@ export function ContentCreator() {
     setResult(null);
 
     try {
+      const filesDescription = uploadedFiles.length > 0
+        ? `\n\nArquivos anexados pelo usuario:\n${uploadedFiles.map((f, i) => `${i + 1}. ${f.type}: ${f.file.name}`).join('\n')}`
+        : '';
+
       const response = await createContent({
-        description,
+        description: description + filesDescription,
         platform,
         content_type: contentType,
         tone,
@@ -86,6 +124,10 @@ export function ContentCreator() {
       setTimeout(() => setCopied(false), 2000);
     }
   };
+
+  const imageFiles = uploadedFiles.filter((f) => f.type === 'image');
+  const audioFiles = uploadedFiles.filter((f) => f.type === 'audio');
+  const videoFiles = uploadedFiles.filter((f) => f.type === 'video');
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
@@ -149,6 +191,130 @@ export function ContentCreator() {
           rows={4}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
         />
+      </div>
+
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-3">Anexar Arquivos (opcional)</label>
+        <div className="flex flex-wrap gap-3">
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={(e) => handleFileUpload(e, 'image')}
+            className="hidden"
+          />
+          <input
+            ref={audioInputRef}
+            type="file"
+            accept="audio/*"
+            multiple
+            onChange={(e) => handleFileUpload(e, 'audio')}
+            className="hidden"
+          />
+          <input
+            ref={videoInputRef}
+            type="file"
+            accept="video/*"
+            multiple
+            onChange={(e) => handleFileUpload(e, 'video')}
+            className="hidden"
+          />
+
+          <button
+            type="button"
+            onClick={() => imageInputRef.current?.click()}
+            className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-400 hover:bg-primary-50 transition-colors"
+          >
+            <Image className="w-5 h-5 text-gray-500" />
+            <span className="text-sm text-gray-600">Fotos</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => audioInputRef.current?.click()}
+            className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-400 hover:bg-primary-50 transition-colors"
+          >
+            <Music className="w-5 h-5 text-gray-500" />
+            <span className="text-sm text-gray-600">Audio</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => videoInputRef.current?.click()}
+            className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-400 hover:bg-primary-50 transition-colors"
+          >
+            <Video className="w-5 h-5 text-gray-500" />
+            <span className="text-sm text-gray-600">Video</span>
+          </button>
+        </div>
+
+        {uploadedFiles.length > 0 && (
+          <div className="mt-4 space-y-3">
+            {imageFiles.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-500 mb-2">Imagens ({imageFiles.length})</p>
+                <div className="flex flex-wrap gap-2">
+                  {imageFiles.map((f, i) => (
+                    <div key={i} className="relative group">
+                      <img
+                        src={f.preview}
+                        alt={f.file.name}
+                        className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                      />
+                      <button
+                        onClick={() => removeFile(uploadedFiles.indexOf(f))}
+                        className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {audioFiles.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-500 mb-2">Audios ({audioFiles.length})</p>
+                <div className="flex flex-wrap gap-2">
+                  {audioFiles.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
+                      <Music className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm text-gray-700 max-w-[150px] truncate">{f.file.name}</span>
+                      <button
+                        onClick={() => removeFile(uploadedFiles.indexOf(f))}
+                        className="p-1 hover:bg-gray-200 rounded-full"
+                      >
+                        <X className="w-3 h-3 text-gray-500" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {videoFiles.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-500 mb-2">Videos ({videoFiles.length})</p>
+                <div className="flex flex-wrap gap-2">
+                  {videoFiles.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
+                      <Video className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm text-gray-700 max-w-[150px] truncate">{f.file.name}</span>
+                      <button
+                        onClick={() => removeFile(uploadedFiles.indexOf(f))}
+                        className="p-1 hover:bg-gray-200 rounded-full"
+                      >
+                        <X className="w-3 h-3 text-gray-500" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
