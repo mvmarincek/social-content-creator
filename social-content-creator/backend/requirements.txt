@@ -10,7 +10,7 @@ uvicorn>=0.30.0
 python-multipart>=0.0.9
 
 # Agno Tools dependencies
-ddgs>=6.0.0
+tavily-python>=0.3.0
 httpx>=0.27.0
 
 # Environment

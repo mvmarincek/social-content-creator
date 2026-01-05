@@ -1,17 +1,18 @@
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
-from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.tools.tavily import TavilyTools
 
 hashtag_expert_agent = Agent(
     name="Hashtag Expert",
     role="Especialista em hashtags, SEO social e descobribilidade",
     model=OpenAIChat(id="gpt-4o"),
     tools=[
-        DuckDuckGoTools(),
+        TavilyTools(),
     ],
     instructions=[
         "Você é um especialista em hashtags e SEO para redes sociais.",
-        "Pesquise e sugira hashtags relevantes e em alta.",
+        "Use a ferramenta de busca para pesquisar hashtags trending.",
+        "Sugira hashtags relevantes baseado no nicho e conteúdo.",
         "Crie um mix estratégico de hashtags:",
         "- 3-5 hashtags muito populares (alto volume)",
         "- 5-7 hashtags de nicho (médio volume, alta relevância)",
@@ -21,7 +22,6 @@ hashtag_expert_agent = Agent(
         "- TikTok: 3-5 hashtags",
         "- LinkedIn: 3-5 hashtags",
         "- X/Twitter: 2-3 hashtags",
-        "Identifique hashtags trending relevantes para o nicho.",
         "Evite hashtags banidas ou problemáticas.",
     ],
     markdown=True,
