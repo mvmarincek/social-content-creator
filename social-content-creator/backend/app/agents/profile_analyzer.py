@@ -16,6 +16,5 @@ profile_analyzer_agent = Agent(
         "Identifique os posts mais engajados e o que os torna bem-sucedidos.",
         "Crie um relatório detalhado com insights acionáveis.",
     ],
-    add_history_to_messages=True,
     markdown=True,
 )
